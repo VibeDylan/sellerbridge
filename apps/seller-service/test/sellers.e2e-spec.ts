@@ -12,6 +12,14 @@ type MockedSellerRepository = jest.Mocked<
   Pick<SellerRepository, 'save' | 'findById'>
 >;
 
+interface SellerResponseBody {
+  id: string;
+  companyName: string;
+  email: string;
+  siret: string;
+  createdAt: string;
+}
+
 describe('Sellers (e2e)', () => {
   let app: INestApplication;
   let sellerRepository: MockedSellerRepository;
@@ -63,7 +71,8 @@ describe('Sellers (e2e)', () => {
         })
         .expect(201);
 
-      expect(response.body.id).toEqual(expect.any(String));
+      const body = response.body as SellerResponseBody;
+      expect(body.id).toEqual(expect.any(String));
       expect(sellerRepository.save).toHaveBeenCalledTimes(1);
     });
 
@@ -108,16 +117,15 @@ describe('Sellers (e2e)', () => {
         .get(`/sellers/${seller.id}`)
         .expect(200);
 
-      expect(response.body.id).toBe(seller.id);
-      expect(response.body.companyName).toBe(seller.companyName);
+      const body = response.body as SellerResponseBody;
+      expect(body.id).toBe(seller.id);
+      expect(body.companyName).toBe(seller.companyName);
     });
 
     it('returns 404 when the seller does not exist', async () => {
       sellerRepository.findById.mockResolvedValue(null);
 
-      await request(app.getHttpServer())
-        .get('/sellers/unknown-id')
-        .expect(404);
+      await request(app.getHttpServer()).get('/sellers/unknown-id').expect(404);
     });
   });
 });

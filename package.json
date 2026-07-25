@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start:dev": "pnpm --filter seller-service run start:dev"
+    "start:dev": "pnpm --filter seller-service run start:dev",
+    "lint": "pnpm --filter seller-service run lint",
+    "test": "pnpm --filter seller-service run test",
+    "test:e2e": "pnpm --filter seller-service run test:e2e"
   },
   "keywords": [],
   "author": "",

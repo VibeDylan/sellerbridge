@@ -10,7 +10,9 @@ import { SellerDocument, SellerSchema } from './repository/seller.schema';
 @Module({
   imports: [
     CqrsModule.forRoot(),
-    MongooseModule.forFeature([{ name: SellerDocument.name, schema: SellerSchema }])
+    MongooseModule.forFeature([
+      { name: SellerDocument.name, schema: SellerSchema },
+    ]),
   ],
   controllers: [SellersController],
   providers: [RegisterSellerHandler, GetSellerHandler, SellerRepository],

@@ -3,10 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Seller } from '../models/seller.model';
-import {
-  SellerDocument,
-  SellerDocumentType,
-} from './seller.schema';
+import { SellerDocument, SellerDocumentType } from './seller.schema';
 import { SellerMapper } from './seller.mapper';
 
 @Injectable()
