@@ -11,5 +11,43 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    restart: unless-stopped
+
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --check=false
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: redpanda-console
+    restart: unless-stopped
+
+    depends_on:
+      - redpanda
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      CONFIG_FILEPATH: /etc/console/config.yml
+
+    volumes:
+      - ./redpanda-console-config.yml:/etc/console/config.yml:ro
+
 volumes:
   mongo_data:
