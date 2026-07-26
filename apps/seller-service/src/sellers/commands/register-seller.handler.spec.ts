@@ -3,14 +3,20 @@ import { RegisterSellerHandler } from './register-seller.handler';
 import { RegisterSellerCommand } from './register-seller.command';
 import { SellerRepository } from '../repository/seller.repository';
 import { Seller } from '../models/seller.model';
+import { SellerEventsPublisher } from '../events/seller-events.publisher';
 
 type MockedSellerRepository = jest.Mocked<
   Pick<SellerRepository, 'save' | 'findById'>
 >;
 
+type MockedSellerEventsPublisher = jest.Mocked<
+  Pick<SellerEventsPublisher, 'publishSellerRegistered'>
+>;
+
 describe('RegisterSellerHandler', () => {
   let handler: RegisterSellerHandler;
   let sellerRepository: MockedSellerRepository;
+  let sellerEventsPublisher: MockedSellerEventsPublisher;
 
   beforeEach(async () => {
     sellerRepository = {
@@ -18,10 +24,15 @@ describe('RegisterSellerHandler', () => {
       findById: jest.fn(),
     };
 
+    sellerEventsPublisher = {
+      publishSellerRegistered: jest.fn(),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         RegisterSellerHandler,
         { provide: SellerRepository, useValue: sellerRepository },
+        { provide: SellerEventsPublisher, useValue: sellerEventsPublisher },
       ],
     }).compile();
 
@@ -50,5 +61,9 @@ describe('RegisterSellerHandler', () => {
     expect(savedSeller.email).toBe('acme@example.com');
     expect(savedSeller.siret).toBe('73282932000074');
     expect(savedSeller.createdAt).toBeInstanceOf(Date);
+
+    expect(sellerEventsPublisher.publishSellerRegistered).toHaveBeenCalledWith(
+      savedSeller,
+    );
   });
 });

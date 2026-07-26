@@ -6,10 +6,15 @@ import { SellersController } from '../src/sellers/sellers.controller';
 import { RegisterSellerHandler } from '../src/sellers/commands/register-seller.handler';
 import { GetSellerHandler } from '../src/sellers/queries/get-seller.handler';
 import { SellerRepository } from '../src/sellers/repository/seller.repository';
+import { SellerEventsPublisher } from '../src/sellers/events/seller-events.publisher';
 import { Seller } from '../src/sellers/models/seller.model';
 
 type MockedSellerRepository = jest.Mocked<
   Pick<SellerRepository, 'save' | 'findById'>
+>;
+
+type MockedSellerEventsPublisher = jest.Mocked<
+  Pick<SellerEventsPublisher, 'publishSellerRegistered'>
 >;
 
 interface SellerResponseBody {
@@ -23,11 +28,16 @@ interface SellerResponseBody {
 describe('Sellers (e2e)', () => {
   let app: INestApplication;
   let sellerRepository: MockedSellerRepository;
+  let sellerEventsPublisher: MockedSellerEventsPublisher;
 
   beforeAll(async () => {
     sellerRepository = {
       save: jest.fn(),
       findById: jest.fn(),
+    };
+
+    sellerEventsPublisher = {
+      publishSellerRegistered: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -37,6 +47,7 @@ describe('Sellers (e2e)', () => {
         RegisterSellerHandler,
         GetSellerHandler,
         { provide: SellerRepository, useValue: sellerRepository },
+        { provide: SellerEventsPublisher, useValue: sellerEventsPublisher },
       ],
     }).compile();
 
@@ -54,6 +65,7 @@ describe('Sellers (e2e)', () => {
   beforeEach(() => {
     sellerRepository.save.mockReset();
     sellerRepository.findById.mockReset();
+    sellerEventsPublisher.publishSellerRegistered.mockReset();
   });
 
   describe('POST /sellers', () => {

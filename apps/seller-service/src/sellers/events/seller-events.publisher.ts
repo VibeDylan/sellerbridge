@@ -28,9 +28,9 @@ export class SellerEventsPublisher implements OnModuleInit, OnModuleDestroy {
   async publishSellerRegistered(seller: Seller): Promise<void> {
     const event = new SellerRegisteredEvent(
       seller.id,
-      seller.siret,
       seller.companyName,
       seller.email,
+      seller.siret,
       seller.createdAt,
     );
 
