@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { SellerEventConsumer } from './events/seller-registered.consumer';
 
 @Module({
   imports: [
@@ -9,6 +10,6 @@ import { ConfigModule } from '@nestjs/config';
     }),
   ],
   controllers: [],
-  providers: [],
+  providers: [SellerEventConsumer],
 })
 export class AppModule {}
