@@ -10,21 +10,26 @@
 
 ```
 src/
-└── events/
-    └── seller-registered.consumer.ts   Kafka consumer (kafkajs), group "kyb-service", subscribed to "seller.registered"
+├── events/
+│   └── seller-registered.consumer.ts   Kafka consumer (kafkajs), group "kyb-service", subscribed to "seller.registered"
+└── kyb/
+    ├── models/         KybCase (plain domain class) + KybStatus (pending/approved/rejected)
+    ├── repository/      KybCaseDocument (Mongoose schema, separate from the domain model) + mapper + KybCaseRepository (save / findBySellerId)
+    └── commands/       OpenKybCaseCommand + OpenKybCaseHandler
 ```
 
-A `kyb/` domain module (`models/`, `repository/`, `commands/`) is coming next, following the same CQRS skeleton as `seller-service`'s `sellers/` module — see the [root README](../../README.md#architecture-principles) for the shared conventions.
+Same CQRS skeleton as `seller-service`'s `sellers/` module — see the [root README](../../README.md#architecture-principles) for the shared conventions. `queries/` and `dto/` aren't needed yet (no HTTP surface on this service so far).
+
+Flow: Kafka message → `SellerEventConsumer.eachMessage` parses the payload (into a local type, not `seller-service`'s own event class — a consumer only depends on the wire contract, not another service's code) → dispatches `OpenKybCaseCommand` through `CommandBus` → `OpenKybCaseHandler` checks `findBySellerId` first (idempotency: a replayed event never creates a duplicate case) → creates a `KybCase` with status `PENDING` via `KybCaseRepository`.
 
 ## Current state
 
 Done:
-- Connects to Redpanda, joins consumer group `kyb-service`, subscribes to `seller.registered`, logs each message received
+- Connects to Redpanda, joins consumer group `kyb-service`, subscribes to `seller.registered`
+- On each message: opens a `KybCase` (status `PENDING`) in its own MongoDB database, idempotently (checked end-to-end: replaying the same event does not create a duplicate)
 
 Not yet built:
-- `KybCase` model + MongoDB persistence (own database, separate from `seller-service`'s)
-- `OpenKybCaseCommand` + handler, dispatched by the consumer instead of just logging
-- Idempotent handling (skip if a case already exists for that `sellerId`, so a replayed/duplicate event doesn't create a duplicate case)
+- Reviewing a `KybCase` (moving it to `APPROVED`/`REJECTED`)
 - Publishing `kyb.reviewed` back to `seller-service`
 
 ## Project setup

@@ -71,7 +71,7 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
-## Manual verification (once the controller/module are wired)
+## Manual verification
 
 ```bash
 curl -X POST http://localhost:3000/sellers \

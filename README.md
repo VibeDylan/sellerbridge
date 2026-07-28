@@ -19,7 +19,7 @@ Managed as a [pnpm workspace](pnpm-workspace.yaml) (`apps/*` + `packages/*`).
 | Service | Status | Description |
 |---|---|---|
 | [`seller-service`](apps/seller-service/README.md) | in progress | Seller registration & lookup, CQRS, publishes `seller.registered` |
-| [`kyb-service`](apps/kyb-service/README.md) | in progress | Consumes `seller.registered`; KYB case persistence coming next |
+| [`kyb-service`](apps/kyb-service/README.md) | in progress | Consumes `seller.registered`, opens a `KybCase` (PENDING) per seller, idempotently |
 
 ## Architecture principles
 
