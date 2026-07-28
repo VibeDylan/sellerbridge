@@ -4,9 +4,7 @@ import { KybCaseRepository } from '../repository/kyb-case.repository';
 import { KybCase, KybStatus } from '../models/kyb-case.model';
 
 @CommandHandler(OpenKybCaseCommand)
-export class OpenKybCaseHandler
-  implements ICommandHandler<OpenKybCaseCommand>
-{
+export class OpenKybCaseHandler implements ICommandHandler<OpenKybCaseCommand> {
   constructor(private readonly kybCaseRepository: KybCaseRepository) {}
 
   async execute(command: OpenKybCaseCommand): Promise<string> {

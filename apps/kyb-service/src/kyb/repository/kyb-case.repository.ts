@@ -5,7 +5,6 @@ import { KybCaseDocument, KybCaseDocumentType } from './kyb-case.schema';
 import { KybCase } from '../models/kyb-case.model';
 import { KybCaseMapper } from './kyb-case.mapper';
 
-
 @Injectable()
 export class KybCaseRepository {
   constructor(

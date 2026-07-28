@@ -1,15 +1,14 @@
-import { KybCase } from "../models/kyb-case.model";
-import { KybCaseDocumentType } from "./kyb-case.schema";
-
+import { KybCase } from '../models/kyb-case.model';
+import { KybCaseDocumentType } from './kyb-case.schema';
 
 export class KybCaseMapper {
   static toDomain(document: KybCaseDocumentType): KybCase {
     return new KybCase(
-        document.id,
-        document.sellerId,
-        document.status,
-        document.createdAt,
-        document.updatedAt
+      document.id,
+      document.sellerId,
+      document.status,
+      document.createdAt,
+      document.updatedAt,
     );
   }
 

@@ -14,10 +14,6 @@ import { SellerEventConsumer } from '../events/seller-registered.consumer';
     ]),
   ],
   controllers: [],
-  providers: [
-    OpenKybCaseHandler,
-    KybCaseRepository,
-    SellerEventConsumer,
-  ],
+  providers: [OpenKybCaseHandler, KybCaseRepository, SellerEventConsumer],
 })
 export class KybModule {}

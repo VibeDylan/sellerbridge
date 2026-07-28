@@ -42,9 +42,7 @@ export class SellerEventConsumer implements OnModuleInit, OnModuleDestroy {
           message.value.toString(),
         ) as SellerRegisteredEventPayload;
 
-        await this.commandBus.execute(
-          new OpenKybCaseCommand(payload.sellerId),
-        );
+        await this.commandBus.execute(new OpenKybCaseCommand(payload.sellerId));
       },
     });
   }
