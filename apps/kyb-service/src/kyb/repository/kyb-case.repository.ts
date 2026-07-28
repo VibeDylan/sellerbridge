@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { KybCaseDocument, KybCaseDocumentType } from './kyb-case.schema';
-import { KybCase } from '../models/kyb-case.model';
+import { KybCase, KybStatus } from '../models/kyb-case.model';
 import { KybCaseMapper } from './kyb-case.mapper';
 
 @Injectable()
@@ -18,6 +18,20 @@ export class KybCaseRepository {
     await this.kybCaseModel.create(data);
 
     return kybCase;
+  }
+
+  async updateStatus(id: string, status: KybStatus): Promise<KybCase | null> {
+    const document = await this.kybCaseModel.findOneAndUpdate(
+      { id },
+      { $set: { status, updatedAt: new Date() } },
+      { new: true },
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return KybCaseMapper.toDomain(document);
   }
 
   async findBySellerId(sellerId: string): Promise<KybCase | null> {
