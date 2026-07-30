@@ -9,6 +9,7 @@ export class SellerMapper {
       document.email,
       document.siret,
       document.createdAt,
+      document.kybStatus,
     );
   }
 
@@ -19,6 +20,7 @@ export class SellerMapper {
       email: seller.email,
       siret: seller.siret,
       createdAt: seller.createdAt,
+      kybStatus: seller.kybStatus,
     };
   }
 }

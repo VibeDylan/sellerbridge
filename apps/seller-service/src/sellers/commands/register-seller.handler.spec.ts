@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { RegisterSellerHandler } from './register-seller.handler';
 import { RegisterSellerCommand } from './register-seller.command';
 import { SellerRepository } from '../repository/seller.repository';
-import { Seller } from '../models/seller.model';
+import { Seller, SellerKybStatus } from '../models/seller.model';
 import { SellerEventsPublisher } from '../events/seller-events.publisher';
 
 type MockedSellerRepository = jest.Mocked<
@@ -61,6 +61,7 @@ describe('RegisterSellerHandler', () => {
     expect(savedSeller.email).toBe('acme@example.com');
     expect(savedSeller.siret).toBe('73282932000074');
     expect(savedSeller.createdAt).toBeInstanceOf(Date);
+    expect(savedSeller.kybStatus).toBe(SellerKybStatus.Pending);
 
     expect(sellerEventsPublisher.publishSellerRegistered).toHaveBeenCalledWith(
       savedSeller,

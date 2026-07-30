@@ -1,16 +1,16 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer } from 'kafkajs';
-import { Seller } from '../models/seller.model';
-import { SellerRegisteredEvent } from './seller-registered.event';
+import { KybCaseReviewedEvent } from './kyb-case-reviewed.event';
+import { KybCase } from '../models/kyb-case.model';
 
 @Injectable()
-export class SellerEventsPublisher implements OnModuleInit, OnModuleDestroy {
+export class KybCaseEventsPublisher implements OnModuleInit, OnModuleDestroy {
   private readonly producer: Producer;
 
   constructor(configService: ConfigService) {
     const kafka = new Kafka({
-      clientId: 'seller-service',
+      clientId: 'kyb-service',
       brokers: [configService.getOrThrow<string>('KAFKA_BROKERS')],
     });
 
@@ -25,18 +25,17 @@ export class SellerEventsPublisher implements OnModuleInit, OnModuleDestroy {
     await this.producer.disconnect();
   }
 
-  async publishSellerRegistered(seller: Seller): Promise<void> {
-    const event = new SellerRegisteredEvent(
-      seller.id,
-      seller.companyName,
-      seller.email,
-      seller.siret,
-      seller.createdAt,
+  async publishKybReviewed(kybCase: KybCase): Promise<void> {
+    const event = new KybCaseReviewedEvent(
+      kybCase.id,
+      kybCase.sellerId,
+      kybCase.status,
+      kybCase.updatedAt
     );
 
     await this.producer.send({
-      topic: 'seller.registered',
-      messages: [{ key: seller.id, value: JSON.stringify(event) }],
+      topic: 'kyb.reviewed',
+      messages: [{ key: kybCase.id, value: JSON.stringify(event) }],
     });
   }
 }

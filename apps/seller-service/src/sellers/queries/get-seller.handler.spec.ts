@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { GetSellerHandler } from './get-seller.handler';
 import { GetSellerQuery } from './get-seller.query';
 import { SellerRepository } from '../repository/seller.repository';
-import { Seller } from '../models/seller.model';
+import { Seller, SellerKybStatus } from '../models/seller.model';
 
 type MockedSellerRepository = jest.Mocked<
   Pick<SellerRepository, 'save' | 'findById'>
@@ -36,6 +36,7 @@ describe('GetSellerHandler', () => {
       'acme@example.com',
       '73282932000074',
       new Date(),
+      SellerKybStatus.Pending,
     );
     sellerRepository.findById.mockResolvedValue(seller);
 

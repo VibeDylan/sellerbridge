@@ -2,14 +2,16 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Consumer, Kafka } from 'kafkajs';
 import { CommandBus } from '@nestjs/cqrs';
-import { OpenKybCaseCommand } from '../kyb/commands/open-kyb-case.command';
+import { UpdateSellerKybStatusCommand } from '../commands/update-seller-kyb-status.command';
+import { SellerKybStatus } from '../models/seller.model';
 
-interface SellerRegisteredEventPayload {
+interface KybReviewedEventPayload {
   sellerId: string;
+  status: SellerKybStatus;
 }
 
 @Injectable()
-export class SellerEventConsumer implements OnModuleInit, OnModuleDestroy {
+export class KybReviewedConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly consumer: Consumer;
 
   constructor(
@@ -17,19 +19,19 @@ export class SellerEventConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly commandBus: CommandBus,
   ) {
     const kafka = new Kafka({
-      clientId: 'kyb-service',
+      clientId: 'seller-service',
       brokers: [configService.getOrThrow<string>('KAFKA_BROKERS')],
     });
 
     this.consumer = kafka.consumer({
-      groupId: 'kyb-service',
+      groupId: 'seller-service',
     });
   }
 
   async onModuleInit(): Promise<void> {
     await this.consumer.connect();
     await this.consumer.subscribe({
-      topic: 'seller.registered',
+      topic: 'kyb.reviewed',
       fromBeginning: false,
     });
     await this.consumer.run({
@@ -40,9 +42,11 @@ export class SellerEventConsumer implements OnModuleInit, OnModuleDestroy {
 
         const payload = JSON.parse(
           message.value.toString(),
-        ) as SellerRegisteredEventPayload;
+        ) as KybReviewedEventPayload;
 
-        await this.commandBus.execute(new OpenKybCaseCommand(payload.sellerId));
+        await this.commandBus.execute(
+          new UpdateSellerKybStatusCommand(payload.sellerId, payload.status),
+        );
       },
     });
   }

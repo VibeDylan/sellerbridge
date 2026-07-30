@@ -5,8 +5,9 @@ import { KybCaseDocument, KybCaseSchema } from './repository/kyb-case.schema';
 import { OpenKybCaseHandler } from './commands/open-kyb-case.handler';
 import { ReviewKybHandler } from './commands/review-kyb.handler';
 import { KybCaseRepository } from './repository/kyb-case.repository';
-import { SellerEventConsumer } from '../events/seller-registered.consumer';
+import { SellerEventConsumer } from './events/seller-registered.consumer';
 import { KybController } from './kyb.controller';
+import { KybCaseEventsPublisher } from './events/kyb-case-events.publisher';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { KybController } from './kyb.controller';
     ReviewKybHandler,
     KybCaseRepository,
     SellerEventConsumer,
+    KybCaseEventsPublisher
   ],
 })
 export class KybModule {}

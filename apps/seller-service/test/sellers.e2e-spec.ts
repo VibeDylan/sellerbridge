@@ -7,7 +7,7 @@ import { RegisterSellerHandler } from '../src/sellers/commands/register-seller.h
 import { GetSellerHandler } from '../src/sellers/queries/get-seller.handler';
 import { SellerRepository } from '../src/sellers/repository/seller.repository';
 import { SellerEventsPublisher } from '../src/sellers/events/seller-events.publisher';
-import { Seller } from '../src/sellers/models/seller.model';
+import { Seller, SellerKybStatus } from '../src/sellers/models/seller.model';
 
 type MockedSellerRepository = jest.Mocked<
   Pick<SellerRepository, 'save' | 'findById'>
@@ -122,6 +122,7 @@ describe('Sellers (e2e)', () => {
         'acme@example.com',
         '73282932000074',
         new Date('2026-01-01T00:00:00.000Z'),
+        SellerKybStatus.Pending,
       );
       sellerRepository.findById.mockResolvedValue(seller);
 
