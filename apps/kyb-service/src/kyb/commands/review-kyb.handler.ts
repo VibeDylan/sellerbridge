@@ -8,8 +8,8 @@ import { KybCaseEventsPublisher } from '../events/kyb-case-events.publisher';
 export class ReviewKybHandler implements ICommandHandler<ReviewKybCommand> {
   constructor(
     private readonly kybCaseRepository: KybCaseRepository,
-    private readonly kybCaseEventsPublisher: KybCaseEventsPublisher
-) {}
+    private readonly kybCaseEventsPublisher: KybCaseEventsPublisher,
+  ) {}
 
   async execute(command: ReviewKybCommand): Promise<string> {
     const { id, status } = command;
@@ -22,7 +22,6 @@ export class ReviewKybHandler implements ICommandHandler<ReviewKybCommand> {
     if (!updatedKybCase) {
       throw new NotFoundException('KYB case not found');
     }
-
 
     await this.kybCaseEventsPublisher.publishKybReviewed(updatedKybCase);
     return updatedKybCase.id;

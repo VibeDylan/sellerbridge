@@ -22,7 +22,7 @@ import { KybCaseEventsPublisher } from './events/kyb-case-events.publisher';
     ReviewKybHandler,
     KybCaseRepository,
     SellerEventConsumer,
-    KybCaseEventsPublisher
+    KybCaseEventsPublisher,
   ],
 })
 export class KybModule {}

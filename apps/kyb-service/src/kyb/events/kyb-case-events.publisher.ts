@@ -30,7 +30,7 @@ export class KybCaseEventsPublisher implements OnModuleInit, OnModuleDestroy {
       kybCase.id,
       kybCase.sellerId,
       kybCase.status,
-      kybCase.updatedAt
+      kybCase.updatedAt,
     );
 
     await this.producer.send({
