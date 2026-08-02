@@ -5,19 +5,29 @@ import request from 'supertest';
 import { KybController } from '../src/kyb/kyb.controller';
 import { ReviewKybHandler } from '../src/kyb/commands/review-kyb.handler';
 import { KybCaseRepository } from '../src/kyb/repository/kyb-case.repository';
+import { KybCaseEventsPublisher } from '../src/kyb/events/kyb-case-events.publisher';
 import { KybCase, KybStatus } from '../src/kyb/models/kyb-case.model';
 
 type MockedKybCaseRepository = jest.Mocked<
   Pick<KybCaseRepository, 'updateStatus'>
 >;
 
+type MockedKybCaseEventsPublisher = jest.Mocked<
+  Pick<KybCaseEventsPublisher, 'publishKybReviewed'>
+>;
+
 describe('Kyb (e2e)', () => {
   let app: INestApplication;
   let kybCaseRepository: MockedKybCaseRepository;
+  let kybCaseEventsPublisher: MockedKybCaseEventsPublisher;
 
   beforeAll(async () => {
     kybCaseRepository = {
       updateStatus: jest.fn(),
+    };
+
+    kybCaseEventsPublisher = {
+      publishKybReviewed: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -26,6 +36,10 @@ describe('Kyb (e2e)', () => {
       providers: [
         ReviewKybHandler,
         { provide: KybCaseRepository, useValue: kybCaseRepository },
+        {
+          provide: KybCaseEventsPublisher,
+          useValue: kybCaseEventsPublisher,
+        },
       ],
     }).compile();
 
@@ -42,6 +56,7 @@ describe('Kyb (e2e)', () => {
 
   beforeEach(() => {
     kybCaseRepository.updateStatus.mockReset();
+    kybCaseEventsPublisher.publishKybReviewed.mockReset();
   });
 
   describe('POST /kyb/:id/review', () => {

@@ -3,32 +3,46 @@ import { NotFoundException } from '@nestjs/common';
 import { ReviewKybHandler } from './review-kyb.handler';
 import { ReviewKybCommand } from './review-kyb.command';
 import { KybCaseRepository } from '../repository/kyb-case.repository';
+import { KybCaseEventsPublisher } from '../events/kyb-case-events.publisher';
 import { KybCase, KybStatus } from '../models/kyb-case.model';
 
 type MockedKybCaseRepository = jest.Mocked<
   Pick<KybCaseRepository, 'updateStatus'>
 >;
 
+type MockedKybCaseEventsPublisher = jest.Mocked<
+  Pick<KybCaseEventsPublisher, 'publishKybReviewed'>
+>;
+
 describe('ReviewKybHandler', () => {
   let handler: ReviewKybHandler;
   let kybCaseRepository: MockedKybCaseRepository;
+  let kybCaseEventsPublisher: MockedKybCaseEventsPublisher;
 
   beforeEach(async () => {
     kybCaseRepository = {
       updateStatus: jest.fn(),
     };
 
+    kybCaseEventsPublisher = {
+      publishKybReviewed: jest.fn(),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         ReviewKybHandler,
         { provide: KybCaseRepository, useValue: kybCaseRepository },
+        {
+          provide: KybCaseEventsPublisher,
+          useValue: kybCaseEventsPublisher,
+        },
       ],
     }).compile();
 
     handler = moduleRef.get(ReviewKybHandler);
   });
 
-  it('updates the case status and returns its id when the case exists', async () => {
+  it('updates the case status, publishes kyb.reviewed, and returns its id when the case exists', async () => {
     const updatedCase = new KybCase(
       'case-123',
       'seller-456',
@@ -44,6 +58,9 @@ describe('ReviewKybHandler', () => {
     expect(kybCaseRepository.updateStatus).toHaveBeenCalledWith(
       'case-123',
       KybStatus.Approved,
+    );
+    expect(kybCaseEventsPublisher.publishKybReviewed).toHaveBeenCalledWith(
+      updatedCase,
     );
     expect(id).toBe('case-123');
   });
