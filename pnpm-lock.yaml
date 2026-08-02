@@ -236,6 +236,9 @@ importers:
       class-validator:
         specifier: ^0.15.1
         version: 0.15.1
+      kafka-resilience:
+        specifier: workspace:*
+        version: link:../../packages/kafka-resilience
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -348,6 +351,9 @@ importers:
       class-validator:
         specifier: ^0.15.1
         version: 0.15.1
+      kafka-resilience:
+        specifier: workspace:*
+        version: link:../../packages/kafka-resilience
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -430,6 +436,16 @@ importers:
       typescript-eslint:
         specifier: ^8.20.0
         version: 8.64.0(eslint@9.39.5)(typescript@5.9.3)
+
+  packages/kafka-resilience:
+    dependencies:
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
 packages:
 
