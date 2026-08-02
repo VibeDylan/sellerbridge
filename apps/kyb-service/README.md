@@ -9,28 +9,38 @@
 ## Architecture
 
 ```
-src/
+src/kyb/
+├── models/         KybCase (plain domain class) + KybStatus (pending/approved/rejected)
+├── repository/      KybCaseDocument (Mongoose schema, separate from the domain model) + mapper + KybCaseRepository (save / findBySellerId / updateStatus)
+├── commands/       OpenKybCaseCommand+Handler (from seller.registered) and ReviewKybCommand+Handler (from the HTTP endpoint below)
+├── dto/               UpdateKybCaseDto — verdict restricted to approved/rejected, never pending
 ├── events/
-│   └── seller-registered.consumer.ts   Kafka consumer (kafkajs), group "kyb-service", subscribed to "seller.registered"
-└── kyb/
-    ├── models/         KybCase (plain domain class) + KybStatus (pending/approved/rejected)
-    ├── repository/      KybCaseDocument (Mongoose schema, separate from the domain model) + mapper + KybCaseRepository (save / findBySellerId)
-    └── commands/       OpenKybCaseCommand + OpenKybCaseHandler
+│   ├── seller-registered.consumer.ts   Kafka consumer, group "kyb-service", subscribed to "seller.registered"
+│   ├── kyb-case-reviewed.event.ts        KybCaseReviewedEvent (sellerId + verdict)
+│   └── kyb-case-events.publisher.ts      publishes kyb.reviewed after a review
+└── kyb.controller.ts                     POST /kyb/:id/review — the operator-facing endpoint
 ```
 
-Same CQRS skeleton as `seller-service`'s `sellers/` module — see the [root README](../../README.md#architecture-principles) for the shared conventions. `queries/` and `dto/` aren't needed yet (no HTTP surface on this service so far).
+Same CQRS skeleton as `seller-service`'s `sellers/` module — see the [root README](../../README.md#architecture-principles) for the shared conventions. `queries/` aren't needed yet.
 
-Flow: Kafka message → `SellerEventConsumer.eachMessage` parses the payload (into a local type, not `seller-service`'s own event class — a consumer only depends on the wire contract, not another service's code) → dispatches `OpenKybCaseCommand` through `CommandBus` → `OpenKybCaseHandler` checks `findBySellerId` first (idempotency: a replayed event never creates a duplicate case) → creates a `KybCase` with status `PENDING` via `KybCaseRepository`.
+Flow in (Kafka): `seller.registered` → `SellerEventConsumer` parses it into a local payload type (never imports `seller-service`'s own event class) → dispatches `OpenKybCaseCommand` → `OpenKybCaseHandler` checks `findBySellerId` first (idempotency: a replayed event never creates a duplicate case) → creates a `KybCase` with status `PENDING`.
+
+Flow out (HTTP + Kafka): an operator calls `POST /kyb/:id/review` → `KybController` dispatches `ReviewKybCommand` → `ReviewKybHandler` updates the case's status (404 if the id doesn't match any case, never upserts) → publishes `kyb.reviewed` (`sellerId` + verdict) via `KybCaseEventsPublisher`, consumed in turn by `seller-service`.
+
+Both consumers (`SellerEventConsumer` here, and `KybReviewedConsumer` in `seller-service`) wrap their message processing with [`kafka-resilience`](../../packages/kafka-resilience/README.md): on failure they retry a few times via message headers, then route to `<topic>.dlt` instead of blocking the partition.
 
 ## Current state
 
 Done:
-- Connects to Redpanda, joins consumer group `kyb-service`, subscribes to `seller.registered`
-- On each message: opens a `KybCase` (status `PENDING`) in its own MongoDB database, idempotently (checked end-to-end: replaying the same event does not create a duplicate)
+- Opens a `KybCase` (`PENDING`) per seller, idempotently, from `seller.registered`
+- `POST /kyb/:id/review` reviews a case (`approved`/`rejected`), publishes `kyb.reviewed`
+- Retry + dead letter topic on `SellerEventConsumer`, via the shared `kafka-resilience` package — verified end-to-end (forced failure → 3 retries → `seller.registered.dlt`)
+- Swagger docs at `/api`, unit + e2e tests, lint clean
+
+The full loop back to `seller-service` (its `kybStatus` field updates after a review) is verified end-to-end.
 
 Not yet built:
-- Reviewing a `KybCase` (moving it to `APPROVED`/`REJECTED`)
-- Publishing `kyb.reviewed` back to `seller-service`
+- The BigQuery analytics sink (a third consumer reading these topics for reporting)
 
 ## Project setup
 

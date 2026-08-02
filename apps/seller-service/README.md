@@ -12,32 +12,34 @@ The `sellers/` module is the reference template for every future domain module i
 
 ```
 src/sellers/
-├── models/         domain entities (plain classes, no framework dependency)
-├── repository/      persistence, hidden behind save()/findById() — MongoDB via Mongoose, a separate schema/mapper keep the domain model persistence-agnostic
-├── commands/        write intents: Command + CommandHandler pairs
+├── models/         domain entities (plain classes, no framework dependency) — Seller now carries kybStatus
+├── repository/      persistence, hidden behind save()/findById()/updateKybStatus() — MongoDB via Mongoose, a separate schema/mapper keep the domain model persistence-agnostic
+├── commands/        write intents: Command + CommandHandler pairs (RegisterSeller, UpdateSellerKybStatus)
 ├── queries/          read intents: Query + QueryHandler pairs
 ├── dto/               HTTP request shapes, validated with class-validator
 ├── decorators/     domain-specific validation decorators (e.g. @IsSiret)
-└── events/            outbound Kafka events (SellerRegisteredEvent + SellerEventsPublisher), published after a successful write
+└── events/            SellerEventsPublisher (publishes seller.registered) + KybReviewedConsumer (consumes kyb.reviewed)
 ```
 
-Flow: `Controller` receives a request → `ValidationPipe` validates the DTO → builds a `Command`/`Query` → dispatches it through `CommandBus`/`QueryBus` → the matching `Handler` executes it against the `Repository` (and, for writes, publishes a domain event to Kafka).
+Flow (write, HTTP): `Controller` receives a request → `ValidationPipe` validates the DTO → builds a `Command`/`Query` → dispatches it through `CommandBus`/`QueryBus` → the matching `Handler` executes it against the `Repository` (and, for writes, publishes a domain event to Kafka).
 
-`sagas/` is intentionally not present yet — it'll be added once a real cross-service saga (e.g. reacting to `kyb.reviewed`) needs it, not before.
+Flow (Kafka in): `KybReviewedConsumer` receives `kyb.reviewed` → parses it into a local payload type (never imports `kyb-service`'s own event class — only the wire contract is shared) → dispatches `UpdateSellerKybStatusCommand` → `UpdateSellerKybStatusHandler` updates the seller's `kybStatus` (404-equivalent internally if the seller doesn't exist, never upserts). Message processing is wrapped with [`kafka-resilience`](../../packages/kafka-resilience/README.md): failures retry a few times via message headers, then land in `kyb.reviewed.dlt` instead of blocking the topic.
+
+`sagas/` is intentionally not present yet — it'll be added once a real cross-service saga needs its own orchestration, not before.
 
 ## Current state
 
 Done:
-- `Seller` model, persisted in MongoDB (in-memory array retired — see [Chantier B](../../README.md))
+- `Seller` model, persisted in MongoDB, with a `kybStatus` field (`pending` at registration, updated by the loop below)
 - `RegisterSellerCommand` + `RegisterSellerHandler` (POST creates a seller, returns `{ id }`, publishes `seller.registered`)
 - `GetSellerQuery` + `GetSellerHandler` (GET returns the seller or 404)
+- `UpdateSellerKybStatusCommand` + `UpdateSellerKybStatusHandler`, triggered by `KybReviewedConsumer` — closes the saga loop from `kyb-service` back to the seller
 - `RegisterSellerDto`, validated with `class-validator` (including a custom `@IsSiret()` checksum validator) via a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted`)
 - Swagger docs at `/api`
 - Unit tests (handlers, mocked repository/publisher) + e2e tests (HTTP layer, mocked repository) + GitHub Actions CI (lint + both test suites)
-- `SellerEventsPublisher`: publishes a `seller.registered` event (via `kafkajs`) to Redpanda after every successful registration, consumed by `kyb-service`
+- Retry + dead letter topic on `KybReviewedConsumer`, via the shared [`kafka-resilience`](../../packages/kafka-resilience/README.md) package — verified end-to-end (forced failure → 3 retries → `kyb.reviewed.dlt`)
 
-Not yet built:
-- Consuming `kyb.reviewed` back from `kyb-service` to update a seller's KYB status (the other half of the choreographed saga)
+The full loop (register → open KYB case → review → seller's `kybStatus` updates) is verified end-to-end with no HTTP call between the two services.
 
 ## Project setup
 
