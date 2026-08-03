@@ -2,28 +2,58 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+`analytics-sink` is the third microservice of SellerBridge. It consumes both `seller.registered` (from [`seller-service`](../seller-service/README.md)) and `kyb.reviewed` (from [`kyb-service`](../kyb-service/README.md)) and writes each event as a row in BigQuery — the "dataset performant pour les équipes Data" from the brief.
+
+## Architecture
+
+```
+src/analytics/
+├── analytics-ingestion.service.ts   BigQuery client + insertSellerRegistration() / insertKybReview(), in the service's own vocabulary (SellerRegistrationRow / KybReviewRow) — never imports Kafka payload types
+├── analytics.consumer.ts               subscribes to both topics, routes by topic name, translates each Kafka payload into the service's row shape
+└── analytics.module.ts
+```
+
+No `models/`, `repository/`, `commands/` here — deliberately, not a copy-paste of the other services' CQRS skeleton. This service has no business rules, no state to protect, no persistence to keep swappable: it reads an event and writes a row. CQRS would add ceremony without isolating anything real, so it's a plain service + consumer instead. See the [root README](../../README.md#architecture-principles) for the general rule this follows.
+
+Flow: `AnalyticsConsumer` subscribes to `seller.registered` **and** `kyb.reviewed` with a single `consumer.subscribe({ topics: [...] })` → routes each message by topic → wraps processing with [`kafka-resilience`](../../packages/kafka-resilience/README.md) (**two** `KafkaRetryHandler` instances, one per topic, since retry/DLT topic naming is per-source-topic) → parses the payload, converts date strings back to `Date`, and calls the matching `AnalyticsIngestionService` method.
+
+Unlike the other two consumers, this one subscribes with `fromBeginning: true` — an analytics sink needs the full history to answer questions like "registrations per day", not just events from the moment it first started.
+
+## BigQuery setup (manual, one-time)
+
+Dataset `sellerbridge_analytics`, two tables (see the SQL DDL below — run once in the BigQuery query editor, not from application code):
+
+```sql
+CREATE TABLE sellerbridge_analytics.seller_registrations (
+  seller_id      STRING    NOT NULL,
+  company_name   STRING,
+  email          STRING,
+  siret          STRING,
+  registered_at  TIMESTAMP NOT NULL,
+  ingested_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+CREATE TABLE sellerbridge_analytics.kyb_reviews (
+  kyb_case_id   STRING    NOT NULL,
+  seller_id     STRING    NOT NULL,
+  verdict       STRING    NOT NULL,
+  reviewed_at   TIMESTAMP NOT NULL,
+  ingested_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+```
+
+Authentication: a GCP service account key, referenced via the standard `GOOGLE_APPLICATION_CREDENTIALS` env var (Application Default Credentials) in the root `.env` — nothing passed explicitly to `new BigQuery()`. The key file lives in `secrets/` at the repo root, which is gitignored; never commit it.
+
+## Current state
+
+Done:
+- Ingests both `seller.registered` and `kyb.reviewed` into their respective BigQuery tables, with retry + dead letter topic on both
+- Verified end-to-end: a fresh registration and review both land in BigQuery within seconds, and the full backfill (`fromBeginning: true`) captured all pre-existing history on first connect
+
+Not yet built:
+- The 2-3 analytics SQL queries from the brief (KYB approval rate, average time between registration and review, registrations per day) — written directly in BigQuery, not part of the application code
 
 ## Project setup
 
@@ -34,65 +64,24 @@ $ pnpm install
 ## Compile and run the project
 
 ```bash
-# development
-$ pnpm run start
+# development (from the repo root)
+$ pnpm run start:dev:analytics
 
-# watch mode
+# or, from this directory
 $ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
 ```
+
+Runs on port `3003` (no HTTP routes — only the two Kafka subscriptions are active).
 
 ## Run tests
 
 ```bash
-# unit tests
 $ pnpm run test
-
-# e2e tests
 $ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
 ## Resources
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- [NestJS Documentation](https://docs.nestjs.com)
+- [BigQuery Node.js client reference](https://cloud.google.com/nodejs/docs/reference/bigquery/latest)
+- [kafkajs docs](https://kafka.js.org/docs/getting-started)

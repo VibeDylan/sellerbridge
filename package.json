@@ -6,6 +6,7 @@
   "scripts": {
     "start:dev:seller": "pnpm --filter seller-service run start:dev",
     "start:dev:kyb": "pnpm --filter kyb-service run start:dev",
+    "start:dev:analytics": "pnpm --filter analytics-sink run start:dev",
     "lint": "pnpm --filter seller-service run lint",
     "test": "pnpm --filter seller-service run test",
     "test:e2e": "pnpm --filter seller-service run test:e2e"
