@@ -31,6 +31,12 @@ export class SellerRepository {
     return SellerMapper.toDomain(document);
   }
 
+  async findAll(): Promise<Seller[]> {
+    const documents = await this.sellerModel.find();
+
+    return documents.map((doc) => SellerMapper.toDomain(doc));
+  }
+
   async updateKybStatus(
     id: string,
     kybStatus: SellerKybStatus,

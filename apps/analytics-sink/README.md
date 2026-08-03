@@ -53,6 +53,12 @@ Done:
 - Verified end-to-end: a fresh registration and review both land in BigQuery within seconds, and the full backfill (`fromBeginning: true`) captured all pre-existing history on first connect
 - The 3 analytics SQL queries from the brief are in [`sql/analytics-queries.sql`](sql/analytics-queries.sql) (KYB approval rate, average time between registration and review, registrations per day) — run them directly in the BigQuery query editor, not part of the application code
 
+## Known duplicates (accepted debt, not a bug)
+
+`analytics-sink` is **at-least-once**, not exactly-once: a `kafka-resilience` retry (a failed message is republished with an incremented header) or a consumer group rebalance (observed repeatedly during local testing, e.g. after a hot-reload) can both cause the same logical event to be delivered — and therefore inserted — more than once. Duplicate rows share the same business timestamp (`registered_at` / `reviewed_at`) but differ on `ingested_at`. Concretely: a review forced to fail during DLT testing on 2026-08-02 produced 5 rows for the same `(kyb_case_id, reviewed_at)`, and a similar retry on `seller.registered` produced 4 rows for the same `(seller_id, registered_at)`.
+
+This is deliberately **not** fixed at ingestion (no dedup-on-write, no unique constraint) — the raw tables are treated as an unclean "bronze" layer, exactly what arrived from Kafka. Deduplication happens at **read time** instead, in [`sql/analytics-queries.sql`](sql/analytics-queries.sql): `ROW_NUMBER() OVER (PARTITION BY <natural key>, <business timestamp> ORDER BY ingested_at) QUALIFY = 1` before aggregating. The partition key is deliberately `(kyb_case_id, reviewed_at)` and `(seller_id, registered_at)` — **not** `kyb_case_id`/`seller_id` alone — because a case can legitimately be reviewed more than once (a real second review has a different `reviewed_at`, and must **not** be collapsed into the first one; only exact redeliveries of the same event, sharing the same business timestamp, are duplicates).
+
 ## Project setup
 
 ```bash

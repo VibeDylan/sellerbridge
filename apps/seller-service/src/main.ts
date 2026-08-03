@@ -10,6 +10,8 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
+  app.enableCors();
+
   const config = new DocumentBuilder()
     .setTitle('Seller Service')
     .setDescription('Seller registration and lookup API')

@@ -5,12 +5,13 @@ import request from 'supertest';
 import { SellersController } from '../src/sellers/sellers.controller';
 import { RegisterSellerHandler } from '../src/sellers/commands/register-seller.handler';
 import { GetSellerHandler } from '../src/sellers/queries/get-seller.handler';
+import { GetAllSellerHandler } from '../src/sellers/queries/get-all-seller.handler';
 import { SellerRepository } from '../src/sellers/repository/seller.repository';
 import { SellerEventsPublisher } from '../src/sellers/events/seller-events.publisher';
 import { Seller, SellerKybStatus } from '../src/sellers/models/seller.model';
 
 type MockedSellerRepository = jest.Mocked<
-  Pick<SellerRepository, 'save' | 'findById'>
+  Pick<SellerRepository, 'save' | 'findById' | 'findAll'>
 >;
 
 type MockedSellerEventsPublisher = jest.Mocked<
@@ -34,6 +35,7 @@ describe('Sellers (e2e)', () => {
     sellerRepository = {
       save: jest.fn(),
       findById: jest.fn(),
+      findAll: jest.fn(),
     };
 
     sellerEventsPublisher = {
@@ -46,6 +48,7 @@ describe('Sellers (e2e)', () => {
       providers: [
         RegisterSellerHandler,
         GetSellerHandler,
+        GetAllSellerHandler,
         { provide: SellerRepository, useValue: sellerRepository },
         { provide: SellerEventsPublisher, useValue: sellerEventsPublisher },
       ],
@@ -65,6 +68,7 @@ describe('Sellers (e2e)', () => {
   beforeEach(() => {
     sellerRepository.save.mockReset();
     sellerRepository.findById.mockReset();
+    sellerRepository.findAll.mockReset();
     sellerEventsPublisher.publishSellerRegistered.mockReset();
   });
 
@@ -139,6 +143,40 @@ describe('Sellers (e2e)', () => {
       sellerRepository.findById.mockResolvedValue(null);
 
       await request(app.getHttpServer()).get('/sellers/unknown-id').expect(404);
+    });
+  });
+
+  describe('GET /sellers', () => {
+    it('returns every seller', async () => {
+      const sellers = [
+        new Seller(
+          '145fd20c-9774-4ce7-a0fc-ef7e008faa2c',
+          'Acme Corp',
+          'acme@example.com',
+          '73282932000074',
+          new Date('2026-01-01T00:00:00.000Z'),
+          SellerKybStatus.Pending,
+        ),
+      ];
+      sellerRepository.findAll.mockResolvedValue(sellers);
+
+      const response = await request(app.getHttpServer())
+        .get('/sellers')
+        .expect(200);
+
+      const body = response.body as SellerResponseBody[];
+      expect(body).toHaveLength(1);
+      expect(body[0].id).toBe(sellers[0].id);
+    });
+
+    it('returns 200 with an empty array when there are no sellers', async () => {
+      sellerRepository.findAll.mockResolvedValue([]);
+
+      const response = await request(app.getHttpServer())
+        .get('/sellers')
+        .expect(200);
+
+      expect(response.body).toEqual([]);
     });
   });
 });

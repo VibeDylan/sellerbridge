@@ -4,6 +4,7 @@ import { SellersController } from './sellers.controller';
 import { RegisterSellerHandler } from './commands/register-seller.handler';
 import { UpdateSellerKybStatusHandler } from './commands/update-seller-kyb-status.handler';
 import { GetSellerHandler } from './queries/get-seller.handler';
+import { GetAllSellerHandler } from './queries/get-all-seller.handler';
 import { SellerRepository } from './repository/seller.repository';
 import { SellerEventsPublisher } from './events/seller-events.publisher';
 import { KybReviewedConsumer } from './events/kyb-reviewed.consumer';
@@ -22,6 +23,7 @@ import { SellerDocument, SellerSchema } from './repository/seller.schema';
     RegisterSellerHandler,
     UpdateSellerKybStatusHandler,
     GetSellerHandler,
+    GetAllSellerHandler,
     SellerRepository,
     SellerEventsPublisher,
     KybReviewedConsumer,
