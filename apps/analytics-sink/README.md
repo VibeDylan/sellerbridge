@@ -51,9 +51,7 @@ Authentication: a GCP service account key, referenced via the standard `GOOGLE_A
 Done:
 - Ingests both `seller.registered` and `kyb.reviewed` into their respective BigQuery tables, with retry + dead letter topic on both
 - Verified end-to-end: a fresh registration and review both land in BigQuery within seconds, and the full backfill (`fromBeginning: true`) captured all pre-existing history on first connect
-
-Not yet built:
-- The 2-3 analytics SQL queries from the brief (KYB approval rate, average time between registration and review, registrations per day) — written directly in BigQuery, not part of the application code
+- The 3 analytics SQL queries from the brief are in [`sql/analytics-queries.sql`](sql/analytics-queries.sql) (KYB approval rate, average time between registration and review, registrations per day) — run them directly in the BigQuery query editor, not part of the application code
 
 ## Project setup
 
