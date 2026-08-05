@@ -6,11 +6,12 @@ Monorepo for the SellerBridge platform: onboarding and verifying sellers (regist
 
 ```
 apps/
-├── seller-service/    NestJS service — seller registration & lookup (CQRS), publishes seller.registered, consumes kyb.reviewed
-├── kyb-service/          NestJS service — consumes seller.registered, exposes KYB review, publishes kyb.reviewed
-└── analytics-sink/     NestJS service — consumes both topics, writes each event as a row in BigQuery
+├── seller-service/      NestJS service — seller registration & lookup (CQRS), publishes seller.registered, consumes kyb.reviewed
+├── kyb-service/            NestJS service — consumes seller.registered, exposes KYB review, publishes kyb.reviewed
+├── analytics-sink/       NestJS service — consumes both topics, writes each event as a row in BigQuery
+└── operator-portal/    Vue 3 front end — the only UI, lets an operator list sellers and review their KYB case
 packages/
-└── kafka-resilience/  shared retry-via-headers + dead letter topic helper, used by all three services' consumers
+└── kafka-resilience/  shared retry-via-headers + dead letter topic helper, used by all three backend services' consumers
 docker-compose.yml    local infra (MongoDB, Redpanda + console)
 ```
 
@@ -18,13 +19,14 @@ Managed as a [pnpm workspace](pnpm-workspace.yaml) (`apps/*` + `packages/*`).
 
 ## Services
 
-| Service | Status | Description |
+| App | Status | Description |
 |---|---|---|
 | [`seller-service`](apps/seller-service/README.md) | in progress | Seller registration & lookup, CQRS, publishes `seller.registered`, consumes `kyb.reviewed` |
-| [`kyb-service`](apps/kyb-service/README.md) | in progress | Consumes `seller.registered`, exposes an operator review endpoint, publishes `kyb.reviewed` |
+| [`kyb-service`](apps/kyb-service/README.md) | in progress | Consumes `seller.registered`, exposes the operator review endpoints, publishes `kyb.reviewed` |
 | [`analytics-sink`](apps/analytics-sink/README.md) | in progress | Consumes both topics, writes each event to BigQuery (`sellerbridge_analytics` dataset) |
+| [`operator-portal`](apps/operator-portal/README.md) | in progress | Vue front end — lists sellers, lets an operator approve/reject a KYB case |
 
-The saga loop is closed both ways: `seller-service` → `seller.registered` → `kyb-service` opens a case → an operator reviews it → `kyb.reviewed` → `seller-service` updates the seller's `kybStatus`. No HTTP call between the two services at any point. `analytics-sink` reads the same two topics independently, for reporting — it never affects the saga, only observes it.
+The saga loop is closed both ways: `seller-service` → `seller.registered` → `kyb-service` opens a case → an operator reviews it (via `operator-portal`, or `curl`) → `kyb.reviewed` → `seller-service` updates the seller's `kybStatus`. No HTTP call between the two backend services at any point — `operator-portal` is the only thing that talks to both over HTTP, directly from the browser. `analytics-sink` reads the same two topics independently, for reporting — it never affects the saga, only observes it.
 
 ## Architecture principles
 
