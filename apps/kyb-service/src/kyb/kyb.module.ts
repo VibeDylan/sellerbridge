@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { KybCaseDocument, KybCaseSchema } from './repository/kyb-case.schema';
 import { OpenKybCaseHandler } from './commands/open-kyb-case.handler';
 import { ReviewKybHandler } from './commands/review-kyb.handler';
+import { ReviewKybBySellerHandler } from './commands/review-kyb-by-seller.handler';
 import { KybCaseRepository } from './repository/kyb-case.repository';
 import { SellerEventConsumer } from './events/seller-registered.consumer';
 import { KybController } from './kyb.controller';
@@ -20,6 +21,7 @@ import { KybCaseEventsPublisher } from './events/kyb-case-events.publisher';
   providers: [
     OpenKybCaseHandler,
     ReviewKybHandler,
+    ReviewKybBySellerHandler,
     KybCaseRepository,
     SellerEventConsumer,
     KybCaseEventsPublisher,

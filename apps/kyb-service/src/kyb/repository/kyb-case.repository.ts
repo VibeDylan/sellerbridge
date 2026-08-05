@@ -34,6 +34,23 @@ export class KybCaseRepository {
     return KybCaseMapper.toDomain(document);
   }
 
+  async updateStatusBySellerId(
+    sellerId: string,
+    status: KybStatus,
+  ): Promise<KybCase | null> {
+    const document = await this.kybCaseModel.findOneAndUpdate(
+      { sellerId },
+      { $set: { status, updatedAt: new Date() } },
+      { new: true },
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return KybCaseMapper.toDomain(document);
+  }
+
   async findBySellerId(sellerId: string): Promise<KybCase | null> {
     const document = await this.kybCaseModel.findOne({ sellerId });
 
