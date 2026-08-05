@@ -48,12 +48,15 @@ Redpanda Console (topics, messages, consumer group lag): http://localhost:8080
 
 `analytics-sink` additionally needs a GCP service account key (see [its README](apps/analytics-sink/README.md#bigquery-setup-manual-one-time)) referenced via `GOOGLE_APPLICATION_CREDENTIALS` in the root `.env`.
 
-Then run a service from the root:
+Then run an app from the root:
 
 ```bash
-pnpm run start:dev:seller       # seller-service, port 3000
-pnpm run start:dev:kyb            # kyb-service, port 3002
-pnpm run start:dev:analytics  # analytics-sink, port 3003
+pnpm run start:dev:seller           # seller-service, port 3000
+pnpm run start:dev:kyb                # kyb-service, port 3002
+pnpm run start:dev:analytics      # analytics-sink, port 3003
+pnpm run start:operator-portal  # operator-portal, port 5173 — needs seller-service and kyb-service running
 ```
 
-Or follow the individual service's README for details ([`apps/seller-service/README.md`](apps/seller-service/README.md), [`apps/kyb-service/README.md`](apps/kyb-service/README.md), [`apps/analytics-sink/README.md`](apps/analytics-sink/README.md)).
+`seller-service` and `kyb-service` both have CORS enabled specifically so `operator-portal` (a different origin) can call them directly from the browser.
+
+Or follow the individual app's README for details ([`apps/seller-service/README.md`](apps/seller-service/README.md), [`apps/kyb-service/README.md`](apps/kyb-service/README.md), [`apps/analytics-sink/README.md`](apps/analytics-sink/README.md), [`apps/operator-portal/README.md`](apps/operator-portal/README.md)).
