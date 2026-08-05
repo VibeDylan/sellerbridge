@@ -15,8 +15,8 @@ src/sellers/
 ├── models/         domain entities (plain classes, no framework dependency) — Seller now carries kybStatus
 ├── repository/      persistence, hidden behind save()/findById()/updateKybStatus() — MongoDB via Mongoose, a separate schema/mapper keep the domain model persistence-agnostic
 ├── commands/        write intents: Command + CommandHandler pairs (RegisterSeller, UpdateSellerKybStatus)
-├── queries/          read intents: Query + QueryHandler pairs
-├── dto/               HTTP request shapes, validated with class-validator
+├── queries/          read intents: Query + QueryHandler pairs (GetSeller, GetAllSeller)
+├── dto/               HTTP request/response shapes — RegisterSellerDto (input, validated) and SellerResponseDto (output, mapped explicitly in the controller so Seller's internal shape never leaks as-is)
 ├── decorators/     domain-specific validation decorators (e.g. @IsSiret)
 └── events/            SellerEventsPublisher (publishes seller.registered) + KybReviewedConsumer (consumes kyb.reviewed)
 ```
@@ -32,9 +32,12 @@ Flow (Kafka in): `KybReviewedConsumer` receives `kyb.reviewed` → parses it int
 Done:
 - `Seller` model, persisted in MongoDB, with a `kybStatus` field (`pending` at registration, updated by the loop below)
 - `RegisterSellerCommand` + `RegisterSellerHandler` (POST creates a seller, returns `{ id }`, publishes `seller.registered`)
-- `GetSellerQuery` + `GetSellerHandler` (GET returns the seller or 404)
+- `GetSellerQuery` + `GetSellerHandler` (GET `/sellers/:id` returns the seller or 404)
+- `GetAllSellerQuery` + `GetAllSellerHandler` (GET `/sellers` returns every seller — an empty list is a valid `200`, never a `404`, unlike the single-resource lookup above)
 - `UpdateSellerKybStatusCommand` + `UpdateSellerKybStatusHandler`, triggered by `KybReviewedConsumer` — closes the saga loop from `kyb-service` back to the seller
 - `RegisterSellerDto`, validated with `class-validator` (including a custom `@IsSiret()` checksum validator) via a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted`)
+- `SellerResponseDto.fromDomain(seller)` — both GET routes map through it before responding, so the domain model's public shape isn't automatically what the API exposes
+- CORS enabled (`app.enableCors()`), for the `operator-portal` frontend running on a different origin
 - Swagger docs at `/api`
 - Unit tests (handlers, mocked repository/publisher) + e2e tests (HTTP layer, mocked repository) + GitHub Actions CI (lint + both test suites)
 - Retry + dead letter topic on `KybReviewedConsumer`, via the shared [`kafka-resilience`](../../packages/kafka-resilience/README.md) package — verified end-to-end (forced failure → 3 retries → `kyb.reviewed.dlt`)

@@ -12,20 +12,22 @@
 src/kyb/
 ├── models/         KybCase (plain domain class) + KybStatus (pending/approved/rejected)
 ├── repository/      KybCaseDocument (Mongoose schema, separate from the domain model) + mapper + KybCaseRepository (save / findBySellerId / updateStatus)
-├── commands/       OpenKybCaseCommand+Handler (from seller.registered) and ReviewKybCommand+Handler (from the HTTP endpoint below)
+├── commands/       OpenKybCaseCommand+Handler (from seller.registered), ReviewKybCommand+Handler (review by case id) and ReviewKybBySellerCommand+Handler (review by seller id, for the operator portal — see below)
 ├── dto/               UpdateKybCaseDto — verdict restricted to approved/rejected, never pending
 ├── events/
 │   ├── seller-registered.consumer.ts   Kafka consumer, group "kyb-service", subscribed to "seller.registered"
 │   ├── kyb-case-reviewed.event.ts        KybCaseReviewedEvent (sellerId + verdict)
 │   └── kyb-case-events.publisher.ts      publishes kyb.reviewed after a review
-└── kyb.controller.ts                     POST /kyb/:id/review — the operator-facing endpoint
+└── kyb.controller.ts                     POST /kyb/:id/review and POST /kyb/by-seller/:sellerId/review
 ```
 
 Same CQRS skeleton as `seller-service`'s `sellers/` module — see the [root README](../../README.md#architecture-principles) for the shared conventions. `queries/` aren't needed yet.
 
 Flow in (Kafka): `seller.registered` → `SellerEventConsumer` parses it into a local payload type (never imports `seller-service`'s own event class) → dispatches `OpenKybCaseCommand` → `OpenKybCaseHandler` checks `findBySellerId` first (idempotency: a replayed event never creates a duplicate case) → creates a `KybCase` with status `PENDING`.
 
-Flow out (HTTP + Kafka): an operator calls `POST /kyb/:id/review` → `KybController` dispatches `ReviewKybCommand` → `ReviewKybHandler` updates the case's status (404 if the id doesn't match any case, never upserts) → publishes `kyb.reviewed` (`sellerId` + verdict) via `KybCaseEventsPublisher`, consumed in turn by `seller-service`.
+Flow out (HTTP + Kafka): an operator calls `POST /kyb/:id/review` (by KYB case id) **or** `POST /kyb/by-seller/:sellerId/review` (by seller id — added for `operator-portal`, which only ever knows a seller's id, never the internal case id) → `KybController` dispatches the matching command → the handler updates the case's status via an atomic `findOneAndUpdate` (404 if nothing matches, never upserts) → publishes `kyb.reviewed` (`sellerId` + verdict) via `KybCaseEventsPublisher`, consumed in turn by `seller-service`.
+
+CORS is enabled (`app.enableCors()`) so `operator-portal`'s dev server (a different origin) can call these routes directly from the browser.
 
 Both consumers (`SellerEventConsumer` here, and `KybReviewedConsumer` in `seller-service`) wrap their message processing with [`kafka-resilience`](../../packages/kafka-resilience/README.md): on failure they retry a few times via message headers, then route to `<topic>.dlt` instead of blocking the partition.
 
@@ -33,14 +35,11 @@ Both consumers (`SellerEventConsumer` here, and `KybReviewedConsumer` in `seller
 
 Done:
 - Opens a `KybCase` (`PENDING`) per seller, idempotently, from `seller.registered`
-- `POST /kyb/:id/review` reviews a case (`approved`/`rejected`), publishes `kyb.reviewed`
+- `POST /kyb/:id/review` and `POST /kyb/by-seller/:sellerId/review` both review a case (`approved`/`rejected`), publish `kyb.reviewed`
 - Retry + dead letter topic on `SellerEventConsumer`, via the shared `kafka-resilience` package — verified end-to-end (forced failure → 3 retries → `seller.registered.dlt`)
 - Swagger docs at `/api`, unit + e2e tests, lint clean
 
-The full loop back to `seller-service` (its `kybStatus` field updates after a review) is verified end-to-end.
-
-Not yet built:
-- The BigQuery analytics sink (a third consumer reading these topics for reporting)
+The full loop back to `seller-service` (its `kybStatus` field updates after a review) is verified end-to-end — including from `operator-portal`'s buttons via the by-seller route.
 
 ## Project setup
 
